@@ -53,7 +53,7 @@ void mainImage(out vec4 o, in vec2 u)
     vec2 pos = u / iResolution.xy;
     // if (true) { o = vec4(1.); }
     // else { o = vec4(0., 0., 0., 1.); }
-    vec4 bgcolor = vecnxcmiy4(0., 0., 0., 1.);
+    vec4 bgcolor = vec4(0., 0., 0., 1.);
     // bgcolor.rgb = skycolor(int(mod(iDate.w, 86400)));
     bgcolor.rgb = skycolor(int(iTime * 2000.));
     float glint = sin(pos.x * 2. - pos.y - iTime * 1.4);
