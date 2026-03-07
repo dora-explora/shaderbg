@@ -12,8 +12,6 @@
 
 uniform sampler2D noise;
 
-const vec4 BACKGROUND = vec4(0.12, 0.02, 0.15, 1.);
-
 float rand(in float seed) {
     return fract(sin(seed) * 43758.5453);
     // seed += fract(iTime);
@@ -68,12 +66,73 @@ vec3 skycolor(in int secs) { // thank god for desmos
     }
 }
 
-void mainImage(out vec4 o, in vec2 u)
+float maxcomp(vec3 v) {
+    return max(v.x, max(v.y, v.z));
+}
+
+float sdfBox(vec3 pos, vec3 dimensions) { // TYSM INIGO QUILEZ!!!!
+    vec3 delta = abs(pos) - dimensions;
+    return length(max(delta, 0.)) + min(maxcomp(delta), 0.);
+}
+
+vec3 normalBox(vec3 pos, vec3 dimensions, float distance) // yoinked from https://timcoster.com/2020/02/11/raymarching-shader-pt1-glsl/
 {
+    vec2 epsilon = vec2(0.001, 0.);
+    vec3 n = distance - vec3(
+    sdfBox(pos - epsilon.xyy, dimensions),
+    sdfBox(pos - epsilon.yxy, dimensions),
+    sdfBox(pos - epsilon.yyx, dimensions));
+
+    return normalize(n);
+}
+
+const float RAY_THRESHOLD = 0.01;
+const float MAX_RAY_DIST = 100.;
+const int MAX_RAY_STEPS = 20;
+
+vec2 renderBox(vec3 ro, vec3 rd, vec3 dimensions) { // helped by https://michaelwalczyk.com/blog-ray-marching.html
+    float traveled = 0.;
+    float distance = 0.;
+    for (int i = 0; i < MAX_RAY_STEPS; i++) {
+        vec3 pos = ro + rd * traveled;
+
+        distance = sdfBox(pos, dimensions);
+        if (distance < RAY_THRESHOLD || traveled > MAX_RAY_DIST) { break; }
+
+        traveled += distance;
+    }
+    return vec2(traveled, distance);
+}
+
+void mainImage(out vec4 o, in vec2 u) {
     ivec2 iu = ivec2(u);
-    vec2 pos = u / iResolution.xy;
+    vec2 uv = u / iResolution.xy;
+
     vec4 bgcolor = vec4(0., 0., 0., 1.);
     // bgcolor.rgb = skycolor(int(mod(iDate.w, 86400)));
     bgcolor.rgb = skycolor(int(mod(iTime * 5000., 86400.)));
-    o = bgcolor;
+
+    // o = bgcolor;
+
+    vec2 rduv = uv - 0.8;
+    rduv.x *= iResolution.x / iResolution.y;
+    vec3 ro = vec3(iTime * 3., -1.2, -9.);
+    vec3 rd = normalize(vec3(rduv, 1.));
+
+    o = vec4(vec3(0.), 1.);
+    vec3 dimensions = vec3(1.5, 0.4, 0.7);
+    for (int i = 0; i < 10; i++) {
+        ro.x = mod(ro.x + 10., 50.) - 10.;
+        ro.x -= 5.;
+        vec3 nro = normalize(ro);
+        vec4 color = vec4(1.);
+        if (nro.x > 0.8388 || nro.x < -0.456) { color.g = 0.; }
+        vec2 tdbox = renderBox(ro, rd, dimensions);
+        float traveled = tdbox.x;
+        float distance = tdbox.y;
+        if (distance < RAY_THRESHOLD) {
+            vec3 normal = normalBox(ro + rd * traveled, dimensions, distance);
+            o = vec4((normal + 1.) * 0.5, 1.);
+        }
+    }
 }
