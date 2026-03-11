@@ -83,7 +83,7 @@ float sdfBox(vec3 pos, vec3 dimensions) { // TYSM INIGO QUILEZ!!!!
 
 vec3 normalBox(vec3 pos, vec3 dimensions, float distance) // yoinked from https://timcoster.com/2020/02/11/raymarching-shader-pt1-glsl/
 {
-    vec2 epsilon = vec2(0.001, 0.);
+    vec2 epsilon = vec2(0.02, 0.);
     vec3 n = distance - vec3(
     sdfBox(pos - epsilon.xyy, dimensions),
     sdfBox(pos - epsilon.yxy, dimensions),
@@ -125,9 +125,10 @@ float renderCloud(vec3 ro, vec3 rd, int secs) {
             max(sin(lighttime), 0.) * 5.,
             cos(lighttime) * -10.
         );
-        float light = light(raypos, normal, lightpos);
-        light *= min(sin(lighttime), 0.) * 0.7 + 1.3;
-        return light;
+        float mainlight = 0.7 * light(raypos, normal, lightpos);
+        float ambientlight = 0.3 * light(raypos, normal, vec3(5., 2., -5.));
+        float lightfactor = min(sin(lighttime), 0.) * 0.7 + 1.3;
+        return lightfactor * (mainlight + ambientlight);
     }
     return 0.;
 }
@@ -139,7 +140,7 @@ float renderClouds(vec2 uv, int secs) {
 
     vec2 rduv = uv - 0.8;
     rduv.x *= iResolution.x / iResolution.y;
-    float pos = iTime * 0.3 + 15.;
+    float pos = iTime * 0.05 + 15.;
     vec3 rd = normalize(vec3(rduv, 1.));
 
     for (float z = -20.; z <= -9.; z++) {
@@ -173,8 +174,8 @@ void mainImage(out vec4 o, in vec2 coord) {
 
     vec4 bgcolor = vec4(skycolor(secs), 1.);
     // bgcolor = vec4(vec3(0.), 1.);
-
     o = bgcolor;
+
     float cloud = renderClouds(pos, secs);
-    if (cloud > 0.) { o = vec4(vec3(cloud), 1.); }
+    if (cloud > 0.) { o = mix(o, vec4(vec3(cloud), 1.), 0.8); }
 }
